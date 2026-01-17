@@ -27,8 +27,8 @@ WebAnalyzer has been refactored to use a highly modular and extensible architect
 
 ```mermaid
 graph TD
-    CLI[CLI Entry Point (main.py)] --> Manager[Module Manager]
-    API[API Engine (api/engine.py)] --> Manager
+    CLI["CLI Entry Point (main.py)"] --> Manager[Module Manager]
+    API["API Engine (api/engine.py)"] --> Manager
     
     Manager --> Registry{Module Registry}
     
