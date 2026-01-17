@@ -9,10 +9,20 @@ def analyze_advanced_seo(domain):
     Perform advanced SEO, analytics, performance, and security analysis for the given domain.
     """
     try:
-        url = f"http://{domain}"
+        scheme = "http"
+        url = f"{scheme}://{domain}"
         start_time = time.time()
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
+        
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+        except requests.exceptions.RequestException:
+            # Retry with HTTPS
+            scheme = "https"
+            url = f"{scheme}://{domain}"
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            
         load_time = time.time() - start_time
         html_content = response.text
 
@@ -125,7 +135,7 @@ def analyze_advanced_seo(domain):
             analysis["Performance Metrics"]["Total Request Size (KB)"] = round(int(content_length) / 1024, 2)
 
         # Check for robots.txt and sitemap.xml
-        check_robots_and_sitemap(domain, analysis)
+        check_robots_and_sitemap(domain, analysis, scheme)
 
         # Save results to logs folder
         save_results_to_logs(domain, analysis)
@@ -134,10 +144,10 @@ def analyze_advanced_seo(domain):
     except requests.exceptions.RequestException as e:
         return {"Error": f"Could not fetch the page: {e}"}
 
-def check_robots_and_sitemap(domain, analysis):
+def check_robots_and_sitemap(domain, analysis, scheme="http"):
     """Check for robots.txt and sitemap.xml"""
-    robots_url = f"http://{domain}/robots.txt"
-    sitemap_url = f"http://{domain}/sitemap.xml"
+    robots_url = f"{scheme}://{domain}/robots.txt"
+    sitemap_url = f"{scheme}://{domain}/sitemap.xml"
 
     # Check for robots.txt
     try:

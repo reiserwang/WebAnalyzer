@@ -51,6 +51,24 @@ class IoTScanner:
             47808, # BACnet
             49152  # Supermicro IPMI / UPnP
         ]
+
+        # CVE Database for common IoT devices
+        self.cve_db = {
+            "Hikvision": ["CVE-2021-36260", "CVE-2017-7921"],
+            "Dahua": ["CVE-2021-33044", "CVE-2021-33045"],
+            "Axis": ["CVE-2018-10660", "CVE-2018-10661", "CVE-2018-10662"],
+            "TPLink": ["CVE-2022-30075"],
+            "Synology": ["CVE-2022-22648"],
+            "MikroTik": ["CVE-2018-14847"],
+        }
+
+        # Common Default Credentials
+        self.default_creds = {
+            "admin": ["admin", "1234", "123456", "password", "system"],
+            "root": ["root", "toor", "admin", "123456", "vizxv"],
+            "user": ["user", "1234"],
+            "support": ["support", "admin"]
+        }
         
     def scan(self) -> Dict[str, Any]:
         """
@@ -129,12 +147,23 @@ class IoTScanner:
                         elif port in [3000]:
                             device_type = "Node.js/Web App"
                         
+                        # Check for CVEs
+                        cves = self._map_cves(product)
+                        
+                        # Check for default credentials (simplified simulation for now to avoid blocking)
+                        # In a real scenario, we would attempt login via SSH/Telnet/HTTP
+                        weak_creds = []
+                        if not self.safe_mode and port in [21, 22, 23, 80, 443, 8080]:
+                             weak_creds = self._check_default_creds(host, port, service_name)
+
                         host_data["services"].append({
                             "port": port,
                             "service": service_name,
                             "banner": f"{product} {version}".strip(),
                             "device_type_hint": device_type,
-                            "state": info.get('state')
+                            "state": info.get('state'),
+                            "potential_cves": cves,
+                            "weak_credentials": weak_creds
                         })
                 
                 if host_data["services"]:
@@ -149,3 +178,31 @@ class IoTScanner:
         except Exception as e:
             self.logger.error(f"IoT Scan failed: {e}")
             return {"error": str(e)}
+
+    def _map_cves(self, product_banner: str) -> List[str]:
+        """Map product name to potential CVEs."""
+        found_cves = []
+        if not product_banner:
+            return []
+            
+        for vendor, cve_list in self.cve_db.items():
+            if vendor.lower() in product_banner.lower():
+                found_cves.extend(cve_list)
+        return list(set(found_cves))
+
+    def _check_default_creds(self, ip: str, port: int, service: str) -> List[str]:
+        """
+        Check for default credentials. 
+        Note: This is a placeholder. Implementing actual brute-force requires 
+        paramiko (SSH), telnetlib (Telnet), or requests (HTTP) with proper timeouts.
+        For now, we return a hint if the service matches known risky ones.
+        """
+        # Actual implementation would go here. 
+        # Returning potential checks for the user to verify manually.
+        findings = []
+        if service in ["ssh", "telnet", "ftp"]:
+             findings.append("Manual Verify: admin/admin, root/root")
+        elif service in ["http", "https", "http-alt"]:
+             findings.append("Manual Verify: admin/admin, admin/1234")
+        
+        return findings

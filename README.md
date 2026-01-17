@@ -79,8 +79,17 @@ The Web Analyzer features the following modules:
 - **Cloudflare Bypass** - Bypasses Cloudflare and other WAF protections to enable analysis of protected websites.
 
 - **Nmap Zero Day** - Advanced vulnerability scanning to identify potential zero-day vulnerabilities.
-
 - **Subdomain Takeover** - Detects vulnerable subdomains that are susceptible to takeover attacks.
+
+### API Security Modules
+
+- **API Fuzzer** - Fuzzes REST API endpoints using OpenAPI/Swagger schemas to find BOLA/IDOR vulnerabilities.
+- **GraphQL Scanner** - Audits GraphQL endpoints for introspection and query depth limits.
+
+### System & Monitoring
+
+- **MSF Job Monitor** - Real-time monitoring of active Metasploit jobs.
+- **Backend Console** - Live system logs displayed in the frontend interface.
 
 ### Advanced Modules
 
@@ -114,6 +123,9 @@ WebAnalyzer aggregates multiple powerful tools into a single workflow. Here is t
 | **Cloudflare Bypass** | `cloudscraper` / custom | Bypasses Javascript challenges to access WAF-protected pages. |
 | **Advanced Content** | `BeautifulSoup` + Regex | Crawls JS files and HTML for API keys, secrets, and endpoints. |
 | **Contact Spy** | `BeautifulSoup` + Regex | Extracts emails, phones, and social links using regex & DOM parsing. |
+| **API Fuzzer** | `requests` + `PyYAML` | Parses OpenAPI schemas and fuzzes endpoints for IDOR/BOLA. |
+| **GraphQL Scanner** | `requests` | Checks introspection and query depth limits. |
+| **MSF Job Monitor** | `pymetasploit3` | Polls Metasploit RPC for active job status. |
 
 ---
 
@@ -197,6 +209,8 @@ npm run dev
 ```
 Web UI runs at `http://localhost:5173`.
 - **Minimalist Interface**: Select modules and run scans visually.
+- **Categorized Modules**: Modules are grouped by logical category (Recon, Discovery, Vulnerability, Exploitation).
+- **Live Console**: Real-time backend status logs displayed directly in the UI.
 - **Port Scan**: View open ports and services in a structured table.
 
 

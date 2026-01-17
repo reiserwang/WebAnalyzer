@@ -34,3 +34,16 @@ class ClassAdapter(BaseModule):
         # We will try passing target as first arg if possible, or kwargs.
         # This might need specific tuning per module, but for now we try simple invocation.
         return method(target, **kwargs)
+
+class AsyncFunctionAdapter(BaseModule):
+    """
+    Adapter for modules that are implemented as an async function.
+    """
+    def __init__(self, name: str, func: Callable, description: str = ""):
+        super().__init__()
+        self.name = name
+        self.func = func
+        self.description = description
+
+    async def run(self, target: str, **kwargs) -> Any:
+        return await self.func(target, **kwargs)

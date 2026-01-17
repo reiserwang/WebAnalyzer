@@ -1,0 +1,38 @@
+
+ RUN  v3.2.4 /Users/reiser/repo/security/WebAnalyzer/web
+
+ ❯ src/App.test.jsx (4 tests | 1 failed | 3 skipped) 24ms
+   × App Component > renders the title 23ms
+     → selectedModules is not defined
+   ↓ App Component > handles successful scan
+   ↓ App Component > handles API error
+   ↓ App Component > shows schema input when API Fuzzer is selected
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/App.test.jsx > App Component > renders the title
+ReferenceError: selectedModules is not defined
+ ❯ src/components/ScannerForm.jsx:58:49
+     56|                                     cursor: isLoading ? 'default' : 'p…
+     57|                                     fontSize: '0.8rem',
+     58|                                     background: selectedModules.includ…
+       |                                                 ^
+     59|                                     color: selectedModules.includes(mo…
+     60|                                     userSelect: 'none'
+ ❯ ScannerForm src/components/ScannerForm.jsx:49:34
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:25904:20
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:7662:22
+ ❯ updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:10166:19
+ ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:11778:18
+ ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:874:13
+ ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:17641:22
+ ❯ workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:17469:41
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 skipped (4)
+   Start at  10:41:46
+   Duration  434ms (transform 28ms, setup 20ms, collect 75ms, tests 24ms, environment 162ms, prepare 40ms)
+

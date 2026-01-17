@@ -5,6 +5,7 @@ class ScanRequest(BaseModel):
     domain: str
     modules: Optional[List[str]] = None  # None means run all, or we can specify
     run_all: bool = True
+    scan_mode: str = "domain" # 'domain' or 'local'
 
 class ScanResponse(BaseModel):
     domain: str

@@ -1,6 +1,6 @@
 from modules.base import BaseModule
 from modules.manager import ModuleManager
-from modules.adapters import FunctionAdapter, ClassAdapter
+from modules.adapters import FunctionAdapter, ClassAdapter, AsyncFunctionAdapter
 
 # Module Imports
 from modules.domain_info import get_domain_info
@@ -24,6 +24,9 @@ from modules.iot_scanner import IoTScanner
 from modules.msf_deep_scan import MSFDeepScanner
 from modules.vuln_scanner import VulnScanner
 from modules.topology_scanner import TopologyScanner
+from modules.api_fuzzer import APIFuzzer
+from modules.graphql_scanner import GraphQLScanner
+from modules.msf_job_monitor import MSFJobMonitor
 
 # Hardcoded key from legacy main.py (Should be moved to env in future)
 LEGACY_API_KEY = "at_14sqNbh0sbZ61CY1Bl0meKYgVKrL8"
@@ -68,7 +71,10 @@ class AnalyzerEngine:
         # 5. Security Analysis
         # This one had custom logic (merging PolicyAnalyzer). 
         # We can implement a custom Adapter or a Lambda to handle composition.
-        def security_analysis_wrapper(domain):
+        # 5. Security Analysis
+        # This one had custom logic (merging PolicyAnalyzer). 
+        # We can implement a custom Adapter or a Lambda to handle composition.
+        def security_analysis_wrapper(domain, **kwargs):
             base_security = analyze_security(domain)
             try:
                 policy_analyzer = PolicyAnalyzer(domain)
@@ -84,7 +90,7 @@ class AnalyzerEngine:
 
         # 6. Advanced Content Scan
         # Wrapper to handle specific args like output_dir
-        def content_scan_wrapper(domain):
+        def content_scan_wrapper(domain, **kwargs):
             scanner = AdvancedContentScanner(
                 domain,
                 output_dir=f"logs/{domain}",
@@ -98,7 +104,7 @@ class AnalyzerEngine:
         ))
 
         # 7. Contact Spy
-        def contact_spy_wrapper(domain):
+        def contact_spy_wrapper(domain, **kwargs):
             scraper = GlobalDomainScraper(domain, max_pages=20, log_dir="logs")
             return scraper.crawl()
             
@@ -114,7 +120,7 @@ class AnalyzerEngine:
             run_subfinder
         ))
 
-        def takeover_wrapper(domain, subdomains=None):
+        def takeover_wrapper(domain, subdomains=None, **kwargs):
             # If subdomains not passed, we might need a way to get them from previous results?
             # ModuleManager.run_all doesn't share state between modules automatically yet.
             # But run_scan does this: "subdomains = run_subfinder..."
@@ -131,24 +137,43 @@ class AnalyzerEngine:
         ))
 
         # 10. Nmap Zero Day
-        async def nmap_wrapper(domain):
-             scanner = UltraAdvancedNetworkScanner(domain=domain, timeout=5, aggressive_mode=False)
+        # 10. Nmap Zero Day
+        async def nmap_wrapper(domain, **kwargs):
+             scanner = UltraAdvancedNetworkScanner(domain=domain, timeout=5)
              return await scanner.run_comprehensive_scan(domain)
         
-        self.manager.register_module(FunctionAdapter(
+        self.manager.register_module(AsyncFunctionAdapter(
             "Nmap Zero Day Scan",
             nmap_wrapper
         ))
 
+        # 10.5 Port Scan (Simple Reference to Nmap)
+        async def port_scan_wrapper(domain, **kwargs):
+             scanner = UltraAdvancedNetworkScanner(domain=domain, timeout=5)
+             # Reuse advanced_port_scan but just return that part
+             # We need to resolve IP first as per run_comprehensive logic?
+             # advanced_port_scan takes target.
+             # Let's resolve first to be safe as run_comprehensive does.
+             dns_info = scanner.dns_resolve(domain)
+             ip = dns_info.get('ipv4')
+             if not ip or 'error' in dns_info:
+                 return {"error": "Domain resolution failed"}
+             return await scanner.advanced_port_scan(ip)
+
+        self.manager.register_module(AsyncFunctionAdapter(
+            "Port Scan",
+            port_scan_wrapper
+        ))
+
         # 11. Cloudflare Bypass
-        def cf_wrapper(domain):
+        def cf_wrapper(domain, **kwargs):
             bypass = CloudflareBypass(target=domain, verbose=False)
             return bypass.run()
         
         self.manager.register_module(FunctionAdapter("CloudFlare Bypass", cf_wrapper))
 
         # 12. FRP Scanner
-        def frp_wrapper(domain):
+        def frp_wrapper(domain, **kwargs):
             scanner = FRPScanner(domain, timeout=3)
             return scanner.scan()
         self.manager.register_module(FunctionAdapter("FRP Scanner", frp_wrapper))
@@ -156,26 +181,26 @@ class AnalyzerEngine:
         # 13. Metasploit Suggester
         # Needs full results. We will handle this dependency in run_scan logic for now
         # OR register it such that it expects 'results' in kwargs
-        def msf_suggest_wrapper(domain, existing_results=None):
+        def msf_suggest_wrapper(domain, existing_results=None, **kwargs):
              suggester = MetasploitSuggester()
              return suggester.suggest(existing_results or {})
         self.manager.register_module(FunctionAdapter("Metasploit Suggester", msf_suggest_wrapper))
 
         # 14. Active Pentest
-        def active_pentest_wrapper(domain, existing_results=None):
+        def active_pentest_wrapper(domain, existing_results=None, **kwargs):
             content_results = existing_results.get("Advanced Content Scan", {}) if existing_results else {}
             pentest = ActivePentest(domain, content_scan_results=content_results)
             return pentest.run()
         self.manager.register_module(FunctionAdapter("Active Pentest", active_pentest_wrapper))
 
         # 15. IoT Scanner
-        def iot_wrapper(domain):
+        def iot_wrapper(domain, **kwargs):
             scanner = IoTScanner(target=domain)
             return scanner.scan()
         self.manager.register_module(FunctionAdapter("IoT Scanner", iot_wrapper))
 
         # 16. MSF Deep Scan
-        def msf_deep_wrapper(domain, existing_results=None):
+        def msf_deep_wrapper(domain, existing_results=None, **kwargs):
              technologies = []
              if existing_results:
                  web_tech = existing_results.get("Web Technologies", {})
@@ -188,58 +213,62 @@ class AnalyzerEngine:
         self.manager.register_module(FunctionAdapter("MSF Deep Scan", msf_deep_wrapper))
 
         # 17. Vuln Scanner
-        def vuln_wrapper(domain):
+        def vuln_wrapper(domain, **kwargs):
             scanner = VulnScanner(target=domain)
             return scanner.scan()
         self.manager.register_module(FunctionAdapter("Vulnerability Scanner", vuln_wrapper))
 
         # 18. Network Topology
-        def topology_wrapper(domain):
+        def topology_wrapper(domain, **kwargs):
             scanner = TopologyScanner(target=domain)
             return scanner.scan()
         self.manager.register_module(FunctionAdapter("Network Topology", topology_wrapper))
 
-    async def run_scan(self, domain: str, modules: List[str] = None) -> Dict[str, Any]:
+        # 19. MSF Job Monitor
+        def msf_jobs_wrapper(domain, **kwargs):
+            monitor = MSFJobMonitor()
+            return monitor.run()
+        self.manager.register_module(FunctionAdapter("MSF Job Monitor", msf_jobs_wrapper))
+
+    async def run_scan(self, domain: str, modules: List[str] = None, **kwargs) -> Dict[str, Any]:
         """
         Runs the specified modules against the domain using ModuleManager.
+        Accepts additional kwargs to pass to modules (e.g., schema_url).
         """
         self.results = {}
         
         # Determine which modules to run. If None, run all.
         target_modules = modules if modules and len(modules) > 0 else self.manager.get_available_modules()
+
+        # Handle Local Network Mode
+        scan_mode = kwargs.get("scan_mode", "domain")
+        if scan_mode == "local":
+            # Filter for network-relevant modules only
+            local_modules = [
+                "Network Topology", "Port Scan", "IoT Scanner", 
+                "FRP Scanner", "Vulnerability Scanner", "Nmap Zero Day Scan"
+            ]
+            # Intersection of requested (or all) and local-capable modules
+            target_modules = [m for m in target_modules if m in local_modules]
+            
+            # If "Nmap Zero Day Scan" is used, ensuring it treats target as network/IP
+            # The underlying scanner uses nmap so CIDR is generally fine.
         
         # Run independent modules first (that don't depend on others)
-        # For simplicity in this refactor, we can iterate or use run_all
-        # But we have dependencies: Subdomain Takeover needs Subdomains.
-        # MSF Suggester needs everything.
-        
-        # Let's run modules in batches or simply iterate and pass self.results
-        
         for name in target_modules:
-            # Skip dependency-heavy ones for a second pass if needed, 
-            # Or just run them and let them pick from self.results
-            
             # Special handling for submodule params
-            kwargs = {}
+            module_kwargs = kwargs.copy() # Start with passed kwargs
+            
             if name == "Subdomain Takeover":
                # Check if we have subdomains from a previous run or if we need to run discovery
                subdomains = self.results.get("Subdomains", [])
-               if not subdomains and "Subdomain Discovery" in target_modules and "Subdomain Discovery" not in self.results:
-                    # Force run discovery if it was requested but not run yet?
-                    # Since we iterate list, order matters if we do it sequentially.
-                    # Ideally we topology sort, but effectively we can just pass self.results 
-                    # and let the wrapper handle "if not found".
-                    pass 
-               kwargs["subdomains"] = subdomains
+               module_kwargs["subdomains"] = subdomains
             
             if name in ["Metasploit Suggester", "Active Pentest", "MSF Deep Scan"]:
-                kwargs["existing_results"] = self.results
+                module_kwargs["existing_results"] = self.results
 
             # Execute
             # Note: ModuleManager.run_module catches exceptions and returns {"error": ...}
-            self.results[name] = await self.manager.run_module(name, domain, **kwargs)
-            
-            # If Subdomain Discovery just ran, update local var for Takeover to use?
-            # effectively self.results has it.
+            self.results[name] = await self.manager.run_module(name, domain, **module_kwargs)
 
         return self.results

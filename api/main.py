@@ -8,10 +8,37 @@ import traceback
 from urllib.parse import urlparse
 from modules.subdomain_takeover import SubdomainTakeover
 
-# Configure Logging
+import logging
+import collections
+from typing import List, Deque
+from fastapi import FastAPI, HTTPException, Request, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from api.schemas import ScanRequest, ScanResponse, SubdomainTakeoverResponse, SubdomainTakeoverResult
+from api.engine import AnalyzerEngine
+import traceback
+from urllib.parse import urlparse
+from modules.subdomain_takeover import SubdomainTakeover
+
+# Configure Logging with Deque for Frontend Console
+log_deque: Deque[str] = collections.deque(maxlen=100)
+
+class DequeHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            log_deque.append(msg)
+        except Exception:
+            self.handleError(record)
+
+# Setup handlers
+deque_handler = DequeHandler()
+deque_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(), deque_handler]
 )
 logger = logging.getLogger("api")
 
@@ -57,7 +84,7 @@ async def run_scan(request: ScanRequest):
     """
     logger.info(f"Received scan request for domain: {request.domain} with modules: {request.modules}")
     try:
-        results = await engine.run_scan(request.domain, request.modules)
+        results = await engine.run_scan(request.domain, request.modules, scan_mode=request.scan_mode)
         logger.info(f"Scan complete for {request.domain}")
         return ScanResponse(domain=request.domain, results=results)
     except Exception as e:
@@ -134,3 +161,12 @@ def get_msf_job_status(job_id: str):
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
+
+@app.get("/api/logs")
+def get_logs(limit: int = 50):
+    """
+    Get recent system logs.
+    """
+    # Return last N logs
+    logs = list(log_deque)
+    return {"logs": logs[-limit:]}

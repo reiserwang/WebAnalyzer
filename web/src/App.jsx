@@ -2,6 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import ScannerForm from './components/ScannerForm';
 import ResultsView from './components/ResultsView';
+import ConsoleOutput from './components/ConsoleOutput';
 
 const API_URL = 'http://localhost:8000/api/scan';
 
@@ -10,7 +11,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleScan = async (domain, modules) => {
+  const handleScan = async (domain, modules, options = {}) => {
     setLoading(true);
     setResults(null);
     setError(null);
@@ -19,7 +20,8 @@ function App() {
       const payload = {
         domain,
         modules,
-        run_all: !modules
+        run_all: !modules,
+        ...options // Spread extra options like schema_url
       };
 
       const response = await axios.post(API_URL, payload);
@@ -54,7 +56,10 @@ function App() {
         </h1>
       </header>
 
-      <ScannerForm onSubmit={handleScan} isLoading={loading} />
+      <div className="left-panel">
+        <ScannerForm onSubmit={handleScan} isLoading={loading} />
+        <ConsoleOutput />
+      </div>
 
       {loading && (
         <div className="brutal-border" style={{ borderColor: 'var(--accent-color)', color: 'var(--accent-color)', textAlign: 'center', padding: '2rem' }}>

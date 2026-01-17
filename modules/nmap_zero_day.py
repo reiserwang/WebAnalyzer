@@ -49,6 +49,20 @@ class UltraAdvancedNetworkScanner:
 
     @lru_cache(maxsize=1000)
     def dns_resolve(self, domain):
+        # Check if domain is already an IP or CIDR
+        # Simple regex for IPv4/IPv6 or CIDR match
+        import ipaddress
+        try:
+            # Check if it's a network (CIDR) or address
+            ipaddress.ip_network(domain, strict=False)
+            return {
+                'ipv4': domain,
+                'ipv6': None,
+                'dns_records': {'A': [], 'MX': [], 'NS': []} 
+            }
+        except ValueError:
+            pass # Not an IP/CIDR, proceed with DNS resolution
+
         try:
             ipv4 = socket.gethostbyname(domain)
             resolver = dns.resolver.Resolver()

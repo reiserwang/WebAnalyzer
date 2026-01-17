@@ -20,12 +20,17 @@ class TopologyScanner:
             # -Pn: Treat as online
             args = "-sn -Pn --traceroute"
             
+            self.logger.info(f"Executing Nmap command with args: {args}")
+            self.logger.info("Please wait, traceroute can take some time...")
+
             # We need sudo for traceroute sometimes, but nmap handles it reasonably well without
             # if using connect scan or similar, but --traceroute usually needs raw sockets (sudo).
             # If running as user, it might fail or fallback.
             # Let's hope the user has permissions or it works via non-icmp.
             
             self.nm.scan(self.target, arguments=args)
+            
+            self.logger.info("Nmap scan completed. Analyzing trace results...")
             
             hops = []
             
@@ -35,6 +40,7 @@ class TopologyScanner:
                     # Nmap structure for trace:
                     # 'trace': {'port_used': '...', 'proto': '...', 'hop': [{...}, ...]}
                     raw_hops = host_data['trace'].get('hop', [])
+                    self.logger.info(f"Trace data found. Processing {len(raw_hops)} hop(s)...")
                     for hop in raw_hops:
                         hops.append({
                             "ttl": int(hop.get('ttl', 0)),
@@ -47,10 +53,13 @@ class TopologyScanner:
             if not hops:
                  # Check if the host itself is up
                  if self.target in self.nm.all_hosts():
+                     self.logger.warning("No intermediate hops found. Target is directly reachable or traceroute blocked.")
                      hops.append({"ttl": 1, "ip": self.target, "rtt": "N/A", "host": self.target})
                  else:
+                     self.logger.error("Target appears down or unreachable.")
                      return {"error": "Could not trace route. Target might be down or permissions required."}
 
+            self.logger.info(f"Topology Scan complete. Mapped {len(hops)} nodes.")
             return {
                 "hops": hops,
                 "target": self.target

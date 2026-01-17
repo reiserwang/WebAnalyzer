@@ -6,6 +6,9 @@ import IoTScanner from './definitions/IoTScanner.jsx';
 import MSFDeepScan from './definitions/MSFDeepScan.jsx';
 import VulnScanner from './definitions/VulnScanner.jsx';
 import TopologyGraph from './definitions/TopologyGraph.jsx';
+import APIFuzzer from './definitions/APIFuzzer.jsx';
+import GraphQLScanner from './definitions/GraphQLScanner.jsx';
+import MSFJobMonitor from './definitions/MSFJobMonitor.jsx';
 
 // Default renderer for modules without a specific definition
 const DefaultRenderer = {
@@ -33,7 +36,10 @@ const MODULE_DEFINITIONS = [
     IoTScanner,
     MSFDeepScan,
     VulnScanner,
-    TopologyGraph
+    TopologyGraph,
+    APIFuzzer,
+    GraphQLScanner,
+    MSFJobMonitor
 ];
 
 export const REGISTERED_MODULES = MODULE_DEFINITIONS.map(def => {
@@ -50,4 +56,37 @@ export const REGISTERED_MODULES = MODULE_DEFINITIONS.map(def => {
 export const getModuleRenderer = (id) => {
     const mod = REGISTERED_MODULES.find(m => m.id === id);
     return mod ? mod.component : DefaultRenderer.component;
+};
+
+export const MODULE_CATEGORIES = {
+    "Reconnaissance (Passive)": [
+        "Domain Information",
+        "DNS Records",
+        "Contact Spy",
+        "SEO Analysis",
+        "Web Technologies",
+        "Network Topology"
+    ],
+    "Discovery (Active)": [
+        "Subdomain Discovery",
+        "Port Scan",
+        "CloudFlare Bypass",
+        "FRP Scanner",
+        "IoT Scanner"
+    ],
+    "Vulnerability Assessment": [
+        "Security Analysis",
+        "Advanced Content Scan",
+        "Subdomain Takeover",
+        "Vulnerability Scanner",
+        "API Fuzzer",
+        "GraphQL Scanner",
+        "Nmap Zero Day Scan"
+    ],
+    "Exploitation (High Risk)": [
+        "Active Pentest",
+        "Metasploit Suggester",
+        "MSF Deep Scan",
+        "MSF Job Monitor"
+    ]
 };

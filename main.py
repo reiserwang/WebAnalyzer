@@ -187,6 +187,51 @@ def print_cloudflare_bypass(results):
         print("\033[91m[-] No real IPs found.\033[0m")
 
 
+def print_api_fuzzer(results):
+    print_result_header("API FUZZER SCAN")
+    if "error" in results:
+         print(f"\033[91mError: {results['error']}\033[0m")
+         if "details" in results:
+             print(f"\033[93mDetails: {results['details']}\033[0m")
+         return
+
+    print(f"\033[94mSchema Source:\033[0m {results.get('schema_source', 'N/A')}")
+    print(f"\033[94mEndpoints Found:\033[0m {results.get('endpoints_found', 0)}")
+    
+    findings = results.get("findings", [])
+    if findings:
+        print("\n\033[93m[!] Findings:\033[0m")
+        for f in findings:
+            status_color = "\033[92m" if "Tested" in f.get("status", "") else "\033[90m"
+            print(f"  {status_color}[{f.get('status')}]\033[0m {f.get('endpoint')}")
+            print(f"    → {f.get('details')}")
+    else:
+        print("\033[92mNo findings or check failed.\033[0m")
+
+def print_graphql_scanner(results):
+    print_result_header("GRAPHQL SCANNER")
+    if "error" in results:
+         print(f"\033[91mError: {results['error']}\033[0m")
+         return
+         
+    target = results.get("target", "Unknown")
+    print(f"\033[94mTarget:\033[0m {target}")
+    
+    intro = results.get("introspection", {})
+    depth = results.get("depth_limit", {})
+    
+    print("\n\033[94m[1] Introspection Check:\033[0m")
+    status = intro.get("status", "Unknown")
+    color = "\033[91m" if status == "Vulnerable" else "\033[92m"
+    print(f"  Status: {color}{status}\033[0m")
+    print(f"  Details: {intro.get('details', '')}")
+    
+    print("\n\033[94m[2] Query Depth Limit:\033[0m")
+    status = depth.get("status", "Unknown")
+    color = "\033[91m" if status == "Vulnerable" else "\033[92m"
+    print(f"  Status: {color}{status}\033[0m")
+    print(f"  Details: {depth.get('details', '')}")
+
 async def main():
     # Clear terminal and display banner
     clear_terminal()
@@ -201,6 +246,16 @@ async def main():
     # Select modules to run
     selected_modules, run_all = select_modules()
 
+    # Collect additional inputs if needed
+    extra_inputs = {}
+    if "API Fuzzer" in selected_modules or run_all:
+         schema_in = input("\033[92m[Optional] Enter OpenAPI/Swagger Schema URL (Enter to skip): \033[0m").strip()
+         if schema_in:
+             extra_inputs["schema_url"] = schema_in
+             print(f"\033[94m[i] Using Schema: {schema_in}\033[0m")
+         else:
+             print("\033[93m[!] No Schema URL provided. API Fuzzer may fail.\033[0m")
+
     # Collect results in a dictionary
     all_results = {}
     print(f"\n\033[94m[➤] Starting analysis for: {domain}\033[0m")
@@ -212,6 +267,9 @@ async def main():
         "DNS Records": print_dns_records,
         "Advanced Content Scan": print_content_scan,
         "CloudFlare Bypass": print_cloudflare_bypass,
+        "CloudFlare Bypass": print_cloudflare_bypass,
+        "API Fuzzer": print_api_fuzzer,
+        "GraphQL Scanner": print_graphql_scanner,
         # Default fallback for others
     }
 
@@ -231,6 +289,9 @@ async def main():
 
              if module_name in ["Metasploit Suggester", "Active Pentest", "MSF Deep Scan"]:
                  kwargs["existing_results"] = all_results
+             
+             if module_name == "API Fuzzer":
+                 kwargs.update(extra_inputs)
 
              result = await engine.manager.run_module(module_name, domain, **kwargs)
              all_results[module_name] = result
