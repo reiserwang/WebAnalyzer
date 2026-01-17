@@ -84,7 +84,8 @@ The Web Analyzer features the following modules:
 ### API Security Modules
 
 - **API Fuzzer** - Fuzzes REST API endpoints using OpenAPI/Swagger schemas to find BOLA/IDOR vulnerabilities.
-- **GraphQL Scanner** - Audits GraphQL endpoints for introspection and query depth limits.
+- **GraphQL Scanner** - Audits GraphQL endpoints for introspection, query depth limits, tracing detection, field suggestions, batching attacks, and CSRF vulnerabilities.
+- **IoT Scanner** - Scans local or remote targets for IoT devices, mapping them to potential CVEs and checking for common default credentials.
 
 ### System & Monitoring
 
@@ -113,9 +114,9 @@ WebAnalyzer aggregates multiple powerful tools into a single workflow. Here is t
 | **DNS Records** | `dnspython` | Resolves A, MX, NS, TXT records. |
 | **Subdomain Discovery** | **`subfinder`** (Go) | Fast passive subdomain enumeration tool. |
 | **Port Scan** | **`Nmap`** | Standard TCP connection scan. |
-| **IoT Scanner** | **`Nmap`** | Service detection (`-sV`) on 30+ IoT-specific ports (MQTT, RTSP, Modbus, etc.). |
+| **IoT Scanner** | **`Nmap`** + CVE DB | Service detection (`-sV`) on 30+ IoT ports; maps vendors to known CVEs and checks default creds. |
 | **Vulnerability Scanner** | **`Nmap`** (NSE) | Runs `--script vuln` (vulners) for CVE detection and UDP scan for SNMP (`snmp-sysdescr`). |
-| **Network Topology** | **`Nmap`** | Uses `--traceroute` to map network hops. |
+| **Network Topology** | **`Nmap`** | Uses `--traceroute` and ICMP/TCP ping to map network hops. |
 | **Metasploit Suggester** | **Metasploit** (RPC) | Matches detected tech/CVEs against local Metasploit module database. |
 | **MSF Deep Scan** | **Metasploit** (Auxiliary) | Runs specific scanners (`wordpress_login`, `log4shell_scanner`, `heartbleed`, etc.). |
 | **Active Pentest** | **Metasploit** (Exploit) | **Safety Warning**: Executes actual exploits (`exploit/*`) via RPC. |
@@ -124,7 +125,7 @@ WebAnalyzer aggregates multiple powerful tools into a single workflow. Here is t
 | **Advanced Content** | `BeautifulSoup` + Regex | Crawls JS files and HTML for API keys, secrets, and endpoints. |
 | **Contact Spy** | `BeautifulSoup` + Regex | Extracts emails, phones, and social links using regex & DOM parsing. |
 | **API Fuzzer** | `requests` + `PyYAML` | Parses OpenAPI schemas and fuzzes endpoints for IDOR/BOLA. |
-| **GraphQL Scanner** | `requests` | Checks introspection and query depth limits. |
+| **GraphQL Scanner** | `requests` + `graphql-cop` | Checks introspection, tracing, batching, and suggestion attacks. |
 | **MSF Job Monitor** | `pymetasploit3` | Polls Metasploit RPC for active job status. |
 
 ---
@@ -209,6 +210,8 @@ npm run dev
 ```
 Web UI runs at `http://localhost:5173`.
 - **Minimalist Interface**: Select modules and run scans visually.
+- **Scan Mode**: Toggle between **DOMAIN** (external) and **LOCAL NETWORK** (internal subnet) scanning.
+    - *Local Mode* automatically optimizes the engine to skip domain-specific checks (SEO, DNS) and focus on Network/IoT discovery.
 - **Categorized Modules**: Modules are grouped by logical category (Recon, Discovery, Vulnerability, Exploitation).
 - **Live Console**: Real-time backend status logs displayed directly in the UI.
 - **Port Scan**: View open ports and services in a structured table.
@@ -242,170 +245,7 @@ Web UI runs at `http://localhost:5173`.
 
 ---
 
-## Example Output Screenshot
-
-![image](https://github.com/user-attachments/assets/09c9912b-55dd-448a-91d5-544fd92baede)
-
-
-### JSON Output:
-The results are saved as `results.json` in the corresponding domain folder:
-```json
-{
-  "Domain Information": {
-    "Domain": "example.com",
-    "Registrar Company": "Registrar Name",
-    "Creation Date": "2020-01-01",
-    "End Date": "2025-01-01",
-    "Privacy Protection": "Effective",
-    "Server Provider": "Cloudflare",
-    "Physical Location": "San Francisco, US"
-  },
-  "DNS Records": {
-    "A Records (IPv4)": ["192.168.0.1"],
-    "MX Records (Mail Servers)": ["mail.example.com"],
-    "Response Time (ms)": 35.5
-  },
-  "Subdomains": ["www.example.com", "blog.example.com"],
-  "SEO Analysis": {
-    "Meta Tags": {"Description": "Example description"},
-    "Analytics Tools": {"Google Analytics IDs": ["UA-123456-7"]}
-  },
-  "Web Technologies": {
-    "Backend Technologies": ["PHP", "WordPress"],
-    "Frontend Technologies": ["Bootstrap"],
-    "Content Delivery Network (CDN)": "Cloudflare"
-  },
-  "Security Analysis": {
-    "Web Application Firewall": "Cloudflare",
-    "SSL Info": {"Issuer": "Let's Encrypt"}
-  },
-  "Subdomain Takeover": {
-    "Vulnerable Subdomains": [
-      {
-        "subdomain": "dev.example.com",
-        "vulnerability_type": "Heroku Subdomain Takeover",
-        "confidence": "High",
-        "service": "Heroku",
-        "exploitation_difficulty": "Medium",
-        "mitigation": "Claim the subdomain or remove the DNS record"
-      }
-    ],
-    "Statistics": {
-      "total_subdomains_checked": 10,
-      "high_confidence_vulnerabilities": 1,
-      "medium_confidence_vulnerabilities": 0,
-      "low_confidence_vulnerabilities": 0
-    }
-  },
-  "Advanced Content Scan": {
-    "summary": {
-      "total_urls_crawled": 50,
-      "total_js_files": 20,
-      "total_api_endpoints": 15
-    },
-    "secrets": [
-      {
-        "type": "API Key",
-        "source_url": "https://example.com/js/config.js",
-        "severity": "High"
-      }
-    ],
-    "js_vulnerabilities": [
-      {
-        "type": "Cross-Site Scripting (XSS)",
-        "source_url": "https://example.com/main.js",
-        "severity": "Medium"
-      }
-    ],
-    "ssrf_vulnerabilities": [
-      {
-        "type": "Potential SSRF Endpoint",
-        "source_url": "https://example.com/proxy",
-        "severity": "High"
-      }
-    ]
-  },
-  "Cloudflare Bypass": {
-    "status": "success",
-    "original_url": "https://example.com",
-    "clean_url": "https://203.0.113.1",
-    "method_used": "direct_ip",
-    "headers_used": {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      "X-Forwarded-For": "203.0.113.1"
-    },
-    "time_taken": 3.5
-  },
-  "Contact Information": {
-    "emails": [
-      {
-        "address": "contact@example.com",
-        "source": "Contact page",
-        "confidence": "High"
-      },
-      {
-        "address": "support@example.com",
-        "source": "Footer",
-        "confidence": "High"
-      }
-    ],
-    "phone_numbers": [
-      {
-        "number": "+1-123-456-7890",
-        "source": "Contact page",
-        "confidence": "High"
-      }
-    ],
-    "social_media": [
-      {
-        "platform": "Twitter",
-        "username": "@example",
-        "url": "https://twitter.com/example"
-      },
-      {
-        "platform": "LinkedIn",
-        "url": "https://linkedin.com/company/example"
-      }
-    ],
-    "contact_forms": [
-      {
-        "url": "https://example.com/contact",
-        "fields": ["name", "email", "message"]
-      }
-    ]
-  },
-  "Zero Day Vulnerabilities": {
-    "scan_summary": {
-      "total_ports_scanned": 1000,
-      "open_ports": 5,
-      "potential_vulnerabilities": 3,
-      "scan_duration": 245.6
-    },
-    "potential_zero_days": [
-      {
-        "service": "HTTP",
-        "port": 8080,
-        "vulnerability_type": "Buffer Overflow",
-        "confidence": "Medium",
-        "details": "Non-standard HTTP implementation with potential memory corruption in header parsing",
-        "cve_similar": ["CVE-2021-34567"]
-      }
-    ],
-    "open_services": [
-      {
-        "port": 80,
-        "service": "HTTP",
-        "version": "nginx/1.18.0"
-      },
-      {
-        "port": 443,
-        "service": "HTTPS",
-        "version": "nginx/1.18.0"
-      }
-    ]
-  }
-}
-```
+#
 ---
 ## Contribution
 Feel free to contribute to this project by:
