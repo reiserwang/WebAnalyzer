@@ -5,6 +5,57 @@ The **Web Analyzer Tool** is a comprehensive Python-based application designed f
 
 ---
 
+## Architecture
+
+WebAnalyzer has been refactored to use a highly modular and extensible architecture, making it easy to add new scanning capabilities without modifying the core engine.
+
+### Core Components
+
+1.  **ModuleManager**: The central heart of the application. It handles:
+    *   Dynamic registration of modules.
+    *   Dependency management (ensuring prerequisites are run).
+    *   Concurrent execution of scanning tasks.
+    *   Standardized error handling and result aggregation.
+
+2.  **BaseModule**: An abstract base class that all new modules implement. It defines the standard interface (`run` method, metadata).
+
+3.  **Adapters**: A flexible compatibility layer that allows:
+    *   **FunctionAdapter**: Wrapping simple standalone functions as full modules.
+    *   **ClassAdapter**: Integrating existing class-based tools seamlessly.
+
+### Architecture Diagram
+
+```mermaid
+graph TD
+    CLI[CLI Entry Point (main.py)] --> Manager[Module Manager]
+    API[API Engine (api/engine.py)] --> Manager
+    
+    Manager --> Registry{Module Registry}
+    
+    Registry --> Mod1[BaseModule Implementation]
+    Registry --> Mod2[FunctionAdapter]
+    Registry --> Mod3[ClassAdapter]
+    
+    Mod2 --> LegacyFunc[Legacy Function]
+    Mod3 --> LegacyClass[Legacy Class]
+    
+    subgraph Execution Flow
+        Manager -->|Orchestrates| AsyncExec[Async Executor]
+        AsyncExec -->|Runs| Mod1
+        AsyncExec -->|Runs| Mod2
+        AsyncExec -->|Runs| Mod3
+    end
+```
+
+### Key Features of New Architecture
+
+*   **Extensibility**: Create a new file in `modules/`, inherit from `BaseModule`, and register it. No need to touch `main.py`.
+*   **Consistency**: Unified execution logic for both CLI and API.
+*   **Performance**: Built-in support for asynchronous execution, allowing concurrent scans.
+*   **Isolation**: Failures in one module are handled gracefully and do not crash the entire scan.
+
+---
+
 ## Modules
 
 The Web Analyzer features the following modules:
@@ -40,6 +91,31 @@ The Web Analyzer features the following modules:
 ### Service Integration
 
 - **Socket Service** - Run Web Analyzer as a service, enabling remote access and API-like functionality.
+
+---
+
+## Module Technology Stack
+
+WebAnalyzer aggregates multiple powerful tools into a single workflow. Here is the breakdown of the underlying technology for each module:
+
+| Module | Underlying Tool / Library | Description |
+| :--- | :--- | :--- |
+| **Domain Info** | `python-whois` | Queries WHOIS servers for registrar data. |
+| **DNS Records** | `dnspython` | Resolves A, MX, NS, TXT records. |
+| **Subdomain Discovery** | **`subfinder`** (Go) | Fast passive subdomain enumeration tool. |
+| **Port Scan** | **`Nmap`** | Standard TCP connection scan. |
+| **IoT Scanner** | **`Nmap`** | Service detection (`-sV`) on 30+ IoT-specific ports (MQTT, RTSP, Modbus, etc.). |
+| **Vulnerability Scanner** | **`Nmap`** (NSE) | Runs `--script vuln` (vulners) for CVE detection and UDP scan for SNMP (`snmp-sysdescr`). |
+| **Network Topology** | **`Nmap`** | Uses `--traceroute` to map network hops. |
+| **Metasploit Suggester** | **Metasploit** (RPC) | Matches detected tech/CVEs against local Metasploit module database. |
+| **MSF Deep Scan** | **Metasploit** (Auxiliary) | Runs specific scanners (`wordpress_login`, `log4shell_scanner`, `heartbleed`, etc.). |
+| **Active Pentest** | **Metasploit** (Exploit) | **Safety Warning**: Executes actual exploits (`exploit/*`) via RPC. |
+| **Web Technologies** | Custom Signature Matching | Identifies CMS, frameworks, and servers via header/HTML keywords. |
+| **Cloudflare Bypass** | `cloudscraper` / custom | Bypasses Javascript challenges to access WAF-protected pages. |
+| **Advanced Content** | `BeautifulSoup` + Regex | Crawls JS files and HTML for API keys, secrets, and endpoints. |
+| **Contact Spy** | `BeautifulSoup` + Regex | Extracts emails, phones, and social links using regex & DOM parsing. |
+
+---
 
 ## Installation
 
@@ -91,6 +167,38 @@ Ensure the following dependencies are installed:
    - Perform all analyses.
    - Display results on the terminal.
    - Save all results in a structured JSON file under `logs/{domain}/results.json`.
+
+---
+
+### 3. (Optional) Metasploit Integration
+To use the **Verification** and **Active User** features, you must have Metasploit running in RPC mode.
+1.  Ensure Metasploit Framework is installed (`brew install metasploit` or via installer).
+2.  Run the helper script:
+    ```bash
+    ./scripts/start_msfrpc.sh
+    ```
+    *Or manually:* `msfrpcd -P toor -U msf -f -a 127.0.0.1`
+
+---
+
+## Web & API Usage
+
+### 1. Start Support API
+```bash
+uvicorn api.main:app --reload
+```
+API runs at `http://127.0.0.1:8000`.
+
+### 2. Start Frontend UI
+```bash
+cd web
+npm install
+npm run dev
+```
+Web UI runs at `http://localhost:5173`.
+- **Minimalist Interface**: Select modules and run scans visually.
+- **Port Scan**: View open ports and services in a structured table.
+
 
 ---
 
@@ -293,8 +401,3 @@ Feel free to contribute to this project by:
 ---
 ## License
 This project is licensed under the MIT License.
-## Contact
-- İnstagram: https://www.instagram.com/f3rrkan/
-- LinkedIn: https://www.linkedin.com/in/furkan-dincer/
-- Mail: hi@c4softwarestudio.com
----

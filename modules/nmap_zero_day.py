@@ -12,11 +12,20 @@ import re
 import os
 
 class UltraAdvancedNetworkScanner:
-    def __init__(self, timeout=20, domain=None, aggressive_mode=True, output_file="nmap_report.json"):
+    def __init__(self, timeout=20, domain=None, safe_mode=True, dont_scan=None, output_file="nmap_report.json"):
         self.nm = nmap.PortScanner()
         self.timeout = timeout
-        self.domain = domain
-        self.aggressive_mode = aggressive_mode
+        self.safe_mode = safe_mode
+        self.dont_scan = dont_scan or []
+        
+        # Sanitize domain to prevent path traversal
+        if domain:
+            # Remove any characters that could be used for path traversal
+            safe_domain = re.sub(r'[\\/]', '', domain)
+            self.domain = safe_domain
+        else:
+            self.domain = "default"
+
         self.security_sources = [
             'https://services.nvd.nist.gov/rest/json/cves/2.0',
             'https://www.exploit-db.com/search',
@@ -31,7 +40,7 @@ class UltraAdvancedNetworkScanner:
             'https://www.securetia.com/',
             'https://openbugbounty.org/search/',
             'https://bugcrowd.com/list-of-bug-bounty-programs',
-            'https://www.hackerone.com/vulnerability-management'
+            'https.hackerone.com/vulnerability-management'
         ]
         self.output_dir = os.path.join("logs", self.domain)
         if not os.path.exists(self.output_dir):
@@ -65,7 +74,8 @@ class UltraAdvancedNetworkScanner:
 
     async def advanced_port_scan(self, target):
         # Nmap tarama argümanları
-        scan_args = '-sV -Pn -A -T5 -p-' if self.aggressive_mode else '-sV -Pn -F -T5'
+        timing = "-T2" if self.safe_mode else "-T4"
+        scan_args = f'-sV -Pn {timing} -p-' if not self.safe_mode else f'-sV -Pn {timing} -F'
         
         # Taramayı thread içinde çalıştır
         loop = asyncio.get_event_loop()
@@ -206,6 +216,9 @@ class UltraAdvancedNetworkScanner:
         return vulns
 
     async def run_comprehensive_scan(self, domain):
+        if domain in self.dont_scan:
+            return {"error": f"Domain {domain} is in the 'do not scan' list."}
+
         start_time = time.time()
         
         # DNS çözümlemesi
@@ -214,6 +227,9 @@ class UltraAdvancedNetworkScanner:
         
         if not ip or 'error' in dns_info:
             return {"error": "Domain çözümlenemedi"}
+
+        if ip in self.dont_scan:
+            return {"error": f"IP {ip} is in the 'do not scan' list."}
 
         # Port taraması
         port_scan_results = await self.advanced_port_scan(ip)
